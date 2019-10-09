@@ -217,10 +217,9 @@ open class WKWebViewController: UIViewController {
         
         setUpState()
     }
-    
-    override open func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        
+
+    open override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
         rollbackState()
     }
     
