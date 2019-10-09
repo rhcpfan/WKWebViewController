@@ -86,6 +86,15 @@ open class WKWebViewController: UIViewController {
     }
     
     open var websiteTitleInNavigationBar = true
+
+    private var _adjustFontSizeForNavigationBarLargeTitle = false
+
+    /// Set to `true` if you want to scale down the font size of the navigation bar large title in order to fit on one row.
+    @available(iOS 11.0, *) @objc open var adjustFontSizeForNavigationBarLargeTitle: Bool {
+        get { return _adjustFontSizeForNavigationBarLargeTitle }
+        set { _adjustFontSizeForNavigationBarLargeTitle = newValue }
+    }
+
     open var doneBarButtonItemPosition: NavigationBarPosition = .right
     open var leftNavigaionBarItemTypes: [BarButtonItemType] = []
     open var rightNavigaionBarItemTypes: [BarButtonItemType] = []
@@ -182,7 +191,11 @@ open class WKWebViewController: UIViewController {
         self.webView?.customUserAgent = self.customUserAgent ?? self.userAgent ?? self.originalUserAgent
         
         self.navigationItem.title = self.navigationItem.title ?? self.source?.absoluteString
-        
+
+        if #available(iOS 11.0, *), adjustFontSizeForNavigationBarLargeTitle {
+            self.adjustNavigationBarLargeTitleSize()
+        }
+
         if let navigation = self.navigationController {
             self.previousNavigationBarState = (navigation.navigationBar.tintColor, navigation.navigationBar.isHidden)
             self.previousToolbarState = (navigation.toolbar.tintColor, navigation.toolbar.isHidden)
@@ -235,6 +248,11 @@ open class WKWebViewController: UIViewController {
             }
         case titleKeyPath?:
             navigationItem.title = webView?.title
+
+            if #available(iOS 11.0, *), adjustFontSizeForNavigationBarLargeTitle {
+                self.adjustNavigationBarLargeTitleSize()
+            }
+            
         default:
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
         }
@@ -546,7 +564,7 @@ fileprivate extension WKWebViewController {
         webView?.stopLoading()
     }
     
-    @objc func activityDidClick(sender: AnyObject) {
+    @objc func activityDidClick(sender: UIBarButtonItem) {
         guard let s = self.source else {
             return
         }
@@ -562,6 +580,7 @@ fileprivate extension WKWebViewController {
         }
         
         let activityViewController = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        activityViewController.popoverPresentationController?.barButtonItem = sender
         present(activityViewController, animated: true, completion: nil)
     }
     
@@ -577,6 +596,25 @@ fileprivate extension WKWebViewController {
     
     @objc func customDidClick(sender: BlockBarButtonItem) {
         sender.block?(self)
+    }
+
+    @objc func adjustNavigationBarLargeTitleSize() {
+
+        guard #available(iOS 11.0, *) else { return }
+
+        let prefersLargeTitle = self.navigationController?.navigationBar.prefersLargeTitles ?? false
+        guard prefersLargeTitle, let title = self.navigationItem.title else { return }
+
+        let maxWidth = UIScreen.main.bounds.size.width - 60
+        var fontSize = UIFont.preferredFont(forTextStyle: .largeTitle).pointSize
+        var width = title.size(withAttributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: fontSize)]).width
+
+        while width > maxWidth {
+            fontSize -= 1
+            width = title.size(withAttributes: [NSAttributedString.Key.font: UIFont.systemFont(ofSize: fontSize)]).width
+        }
+
+        self.navigationController?.navigationBar.largeTitleTextAttributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: fontSize), NSAttributedString.Key.foregroundColor: UIColor.white]
     }
 }
 
