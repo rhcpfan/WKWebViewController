@@ -62,27 +62,9 @@ open class WKWebViewController: UIViewController {
     open var bypassedSSLHosts: [String]?
     open var cookies: [HTTPCookie]?
     open var headers: [String: String]?
-    internal var customUserAgent: String? {
+    open var customUserAgent: String? {
         didSet {
-            guard let agent = userAgent else {
-                return
-            }
-            webView?.customUserAgent = agent
-        }
-    }
-    
-    open var userAgent: String? {
-        didSet {
-            guard let originalUserAgent = originalUserAgent, let userAgent = userAgent else {
-                return
-            }
-            webView?.customUserAgent = [originalUserAgent, userAgent].joined(separator: " ")
-        }
-    }
-    
-    open var pureUserAgent: String? {
-        didSet {
-            guard let agent = pureUserAgent else {
+            guard let agent = customUserAgent else {
                 return
             }
             webView?.customUserAgent = agent
@@ -115,9 +97,7 @@ open class WKWebViewController: UIViewController {
     
     fileprivate var previousNavigationBarState: (tintColor: UIColor, backgroundColor: UIColor, foregroundColor: UIColor, hidden: Bool) = (.black, .white, .black, false)
     fileprivate var previousToolbarState: (tintColor: UIColor, hidden: Bool) = (.black, false)
-    
-    lazy fileprivate var originalUserAgent = UIWebView().stringByEvaluatingJavaScript(from: "navigator.userAgent")
-    
+
     lazy fileprivate var backBarButtonItem: UIBarButtonItem = {
         let bundle = Bundle(for: WKWebViewController.self)
         return UIBarButtonItem(image: backBarButtonItemImage ?? UIImage(named: "Back", in: bundle, compatibleWith: nil), style: .plain, target: self, action: #selector(backDidClick(sender:)))
@@ -188,11 +168,16 @@ open class WKWebViewController: UIViewController {
         if websiteTitleInNavigationBar {
             webView.addObserver(self, forKeyPath: titleKeyPath, options: .new, context: nil)
         }
-        
-        //        view = webView
+
         self.webView = webView
-        
-        self.webView?.customUserAgent = self.customUserAgent ?? self.userAgent ?? self.originalUserAgent
+
+        if let customUserAgent = self.customUserAgent {
+            self.webView?.customUserAgent = customUserAgent
+        } else {
+            self.webView?.evaluateJavaScript("navigator.userAgent", completionHandler: { [weak self] (result, error) in
+                self?.webView?.customUserAgent = result as? String
+            })
+        }
         
         self.navigationItem.title = self.navigationItem.title ?? self.source?.absoluteString
 
